@@ -76,29 +76,29 @@ library(dplyr)
 library(leaflet)  # Add this line to load the leaflet package
 
 # Load shapefiles
-township_shapes &lt;- st_read("./data/Long_Island_Cities_Towns.shp")
-county_shapes &lt;- st_read("./data/Counties.shp")
+township_shapes &lt;- sf::st_read("./data/Long_Island_Cities_Towns.shp")
+county_shapes &lt;- sf::st_read("./data/Counties.shp")
 
 # Ensure the CRS of the shapefiles is the same as the point CRS (WGS 84)
-township_shapes &lt;- st_transform(township_shapes, crs = 4326)
-county_shapes &lt;- st_transform(county_shapes, crs = 4326)
+township_shapes &lt;- sf::st_transform(township_shapes, crs = 4326)
+county_shapes &lt;- sf::st_transform(county_shapes, crs = 4326)
 
-ui &lt;- fluidPage(
-  titlePanel("Township Finder"),
-  sidebarLayout(
-    sidebarPanel(
-      textInput("street", "Street Address (ex. 123 Kings Park Blvd)"),
-      textInput("city", "City (in New York only, ex. Kings Park)"),
-      actionButton("submit", "Geocode")
+ui &lt;- shiny::fluidPage(
+  shiny::titlePanel("Township Finder"),
+  shiny::sidebarLayout(
+    shiny::sidebarPanel(
+      shiny::textInput("street", "Street Address (ex. 123 Kings Park Blvd)"),
+      shiny::textInput("city", "City (in New York only, ex. Kings Park)"),
+      shiny::actionButton("submit", "Geocode")
     ),
-    mainPanel(
-      textOutput("matched_address"),
-      textOutput("township"),
-      textOutput("county"),
-      leafletOutput("map")  # Add a leaflet output
+    shiny::mainPanel(
+      shiny::textOutput("matched_address"),
+      shiny::textOutput("township"),
+      shiny::textOutput("county"),
+      leaflet::leafletOutput("map")  # Add a leaflet output
     )
   ),
-  HTML("&lt;p&gt;This app helps you find the township/city and county of a given address on Long Island, New York. When you enter a street address and city, it uses the US Census Bureau's Geocoding Services API to geocode the address and determine its geographic coordinates. It then compares those coordinates with the boundaries of New York State's civil divisions (townships/cities and counties) using shapefiles to determine which specific township/city and county the address falls within.&lt;/p&gt;
+  shiny::HTML("&lt;p&gt;This app helps you find the township/city and county of a given address on Long Island, New York. When you enter a street address and city, it uses the US Census Bureau's Geocoding Services API to geocode the address and determine its geographic coordinates. It then compares those coordinates with the boundaries of New York State's civil divisions (townships/cities and counties) using shapefiles to determine which specific township/city and county the address falls within.&lt;/p&gt;
 
 &lt;p&gt;The app handles situations where a zip code spans multiple towns or when an address is located within a city like Glen Cove. It provides the matched address from the geocoding API, as well as the township/city and county names for the given address.&lt;/p&gt;
 
@@ -108,17 +108,17 @@ ui &lt;- fluidPage(
 )
 
 server &lt;- function(input, output, session) {
-  observeEvent(input$submit, {
-    req(input$street, input$city)
+  shiny::observeEvent(input$submit, {
+    shiny::req(input$street, input$city)
     
     # Construct the full address
     full_address &lt;- paste(input$street, input$city, "NY")
     
-    # Geocode the address using tidygeocoder with the Census method
-    geo_result &lt;- geo(full_address, method = "census", full_results = TRUE)
+    # Geocode the address using tidygeocoder::geo with the Census method
+    geo_result &lt;- tidygeocoder::geo(full_address, method = "census", full_results = TRUE)
     
     if (nrow(geo_result) == 0) {
-      output$full_address &lt;- renderText("Address not found.")
+      output$full_address &lt;- shiny::renderText("Address not found.")
       return(NULL)
     }
     
@@ -129,33 +129,33 @@ server &lt;- function(input, output, session) {
     lon &lt;- geo_result$long
     matched_address &lt;- geo_result$matchedAddress
     # Create an sf point object
-    point &lt;- st_sf(geometry = st_sfc(st_point(c(lon, lat)), crs = 4326))
+    point &lt;- sf::st_sf(geometry = sf::st_sfc(sf::st_point(c(lon, lat)), crs = 4326))
     
     # Determine township and county
-    township &lt;- st_join(point, township_shapes, join = st_within)$NAME
-    county &lt;- st_join(point, county_shapes, join = st_within)$NAME
+    township &lt;- sf::st_join(point, township_shapes, join = sf::st_within)$NAME
+    county &lt;- sf::st_join(point, county_shapes, join = sf::st_within)$NAME
     
     # Render outputs
-    output$matched_address &lt;- renderText({
+    output$matched_address &lt;- shiny::renderText({
       paste("Full Address: ", matched_address, sep = "")
     })
-    output$township &lt;- renderText({
+    output$township &lt;- shiny::renderText({
       paste("Township/City: ", ifelse(length(township) &gt; 0, township, "Address is outside of Long Island or not found"), sep = "")
     })
-    output$county &lt;- renderText({
+    output$county &lt;- shiny::renderText({
       paste("County: ", ifelse(length(county) &gt; 0, county, "Address is outside of New York or not found"), sep = "")
     })
     
     # Render map
-    output$map &lt;- renderLeaflet({
-      leaflet() %&gt;%
-        addTiles() %&gt;%
-        addMarkers(lng = lon, lat = lat, popup = matched_address)
+    output$map &lt;- leaflet::renderLeaflet({
+      leaflet::leaflet() %&gt;%
+        leaflet::addTiles() %&gt;%
+        leaflet::addMarkers(lng = lon, lat = lat, popup = matched_address)
     })
   })
 }
 
-shinyApp(ui = ui, server = server)</code></pre>
+shiny::shinyApp(ui = ui, server = server)</code></pre>
 
 </main>
 <!-- /main column -->
